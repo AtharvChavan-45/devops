@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: student-management-deployment
+  labels:
+    app: student-management
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: student-management
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: student-management
+    spec:
+      containers:
+      - name: student-app
+        image: atharvpatil/devops-student-management:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: DB_URL
+          value: "jdbc:mysql://mysql-service:3306/studentdb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+        - name: DB_USERNAME
+          value: "root"
+        - name: DB_PASSWORD
+          value: "rootpassword"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /api/students/health
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/students/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 15

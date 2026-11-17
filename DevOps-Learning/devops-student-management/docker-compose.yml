@@ -1,0 +1,66 @@
+version: '3.8'
+
+# ==============================================================================
+# Docker Compose: DevOps Student Management System + MySQL Database
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # Service 1: MySQL Database
+  # ----------------------------------------------------------------------------
+  mysql-db:
+    image: mysql:8.0
+    container_name: devops-mysql-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: studentdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - devops-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ----------------------------------------------------------------------------
+  # Service 2: Spring Boot Application
+  # ----------------------------------------------------------------------------
+  student-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: devops-student-management:1.0.0
+    container_name: devops-student-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:mysql://mysql-db:3306/studentdb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USERNAME: root
+      DB_PASSWORD: rootpassword
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - devops-network
+
+# ==============================================================================
+# Persistent Named Volume for Database Storage
+# ==============================================================================
+volumes:
+  mysql_data:
+    driver: local
+
+# ==============================================================================
+# Custom Bridge Network for Isolated Inter-Container Communication
+# ==============================================================================
+networks:
+  devops-network:
+    driver: bridge
